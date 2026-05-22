@@ -7,34 +7,36 @@ const THEME_STORAGE_KEY = 'selectedTheme';
 export const themes = {
   Bloom: {
     primary: '#C0392B',
-    primaryLight: '#F9E4E4',
+    primaryLight: '#FAD7D7',
     success: '#27AE60',
     warning: '#F39C12',
     danger: '#E74C3C',
-    background: '#FFF8F8',
-    card: '#FFFFFF',
-    textPrimary: '#2C2C2C',
-    textSecondary: '#7F8C8D',
-    border: '#F0D9D9',
+    background: '#FFF0F0',      // warmer pink tint
+    card: '#FFF8F8',            // subtle pink — separates from background
+    textPrimary: '#1C1C1C',     // darker for contrast
+    textSecondary: '#5A5A5A',   // much darker than before — readable on light
+    border: '#E8C0C0',          // more visible pink border
     accent: '#E94B6A',
     white: '#FFFFFF',
-    grey: '#BDC3C7',
+    grey: '#95A5A6',
   },
+
   Sage: {
     primary: '#5B8266',
-    primaryLight: '#E3EEDA',
+    primaryLight: '#D4EAD8',
     success: '#27AE60',
     warning: '#F39C12',
     danger: '#E74C3C',
-    background: '#F7FBF5',
-    card: '#FFFFFF',
-    textPrimary: '#2C2C2C',
-    textSecondary: '#7F8C8D',
-    border: '#D8E5D3',
+    background: '#F0F7F0',      // clear green tint
+    card: '#F7FBF5',            // light green-white — separates from background
+    textPrimary: '#1C1C1C',     // darker for contrast
+    textSecondary: '#4A5A4A',   // green-tinted dark gray — readable
+    border: '#BDD5C0',          // visible green border
     accent: '#6FA57A',
     white: '#FFFFFF',
-    grey: '#BDC3C7',
+    grey: '#95A5A6',
   },
+
   Lavender: {
     primary: '#7B6FA8',
     primaryLight: '#EDE7F6',
@@ -50,21 +52,23 @@ export const themes = {
     white: '#FFFFFF',
     grey: '#BDC3C7',
   },
+
   Midnight: {
     primary: '#E94B6A',
-    primaryLight: '#3A2A36',
-    success: '#27AE60',
-    warning: '#F39C12',
+    primaryLight: '#5C2D42',    // much lighter than before — chip selections visible
+    success: '#2ECC71',         // brighter green for dark bg
+    warning: '#F1C40F',         // brighter yellow for dark bg
     danger: '#E74C3C',
-    background: '#121826',
-    card: '#1E2638',
+    background: '#0F1623',      // deeper dark — better contrast with card
+    card: '#1A2235',            // clearly distinct from background
     textPrimary: '#F5F5F5',
-    textSecondary: '#A0A8B5',
-    border: '#2A3548',
+    textSecondary: '#B0BAC8',   // lighter — readable on dark card
+    border: '#2E3F58',          // more visible than before
     accent: '#6BA5FF',
     white: '#FFFFFF',
-    grey: '#999999',
+    grey: '#8899AA',
   },
+
   Charcoal: {
     primary: '#E07856',
     primaryLight: '#3A2E28',

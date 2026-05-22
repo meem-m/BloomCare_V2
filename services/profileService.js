@@ -14,6 +14,7 @@ export const saveProfile = async (userId, profileData) => {
     age: profileData.age ? parseInt(profileData.age, 10) : null,
     weight_kg: profileData.weight ? parseFloat(profileData.weight) : null,
     height_cm: profileData.height ? parseFloat(profileData.height) : null,
+    ...(profileData.bmi !== undefined ? { bmi: profileData.bmi } : {}),
     diet_type: profileData.dietaryPreference
       ? (profileData.dietaryPreference === 'Omnivore' ? 'non_vegetarian' : profileData.dietaryPreference.toLowerCase())
       : null,
@@ -102,6 +103,7 @@ export const getProfile = async (userId, onFreshData) => {
             age: data.age,
             height: data.height_cm,
             weight: data.weight_kg,
+            ...(data.bmi !== undefined && data.bmi !== null ? { bmi: data.bmi } : {}),
             dietaryPreference: data.diet_type === 'non_vegetarian' ? 'Omnivore' : data.diet_type,
             medicalConditions: buildMedicalConditionsArray(data),
             coffee_tea_frequency: data.coffee_tea_frequency,
@@ -135,6 +137,7 @@ export const getProfile = async (userId, onFreshData) => {
         age: data.age,
         height: data.height_cm,
         weight: data.weight_kg,
+        ...(data.bmi !== undefined && data.bmi !== null ? { bmi: data.bmi } : {}),
         dietaryPreference: data.diet_type === 'non_vegetarian' ? 'Omnivore' : data.diet_type,
         medicalConditions: buildMedicalConditionsArray(data),
         coffee_tea_frequency: data.coffee_tea_frequency,

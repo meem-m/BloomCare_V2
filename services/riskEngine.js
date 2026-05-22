@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
 
 const THRESHOLDS = [
-  { max: 9, level: 'low', color: '#27AE60' },
-  { max: 19, level: 'moderate', color: '#F39C12' },
-  { max: 100, level: 'high', color: '#C0392B' },
+  { max: 15, level: 'low',      color: '#27AE60' },
+  { max: 30, level: 'moderate', color: '#F39C12' },
+  { max: 100, level: 'high',    color: '#C0392B' },
 ];
 
 const clampScore = (value) => Math.min(100, Math.max(0, value));

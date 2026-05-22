@@ -31,6 +31,20 @@ By using this app, you acknowledge that BloomCare and its developers are not lia
 export default function ProfileScreen({ navigation }) {
   const { theme, themeName, setTheme } = useTheme();
   const styles = createStyles(theme);
+  const calculateBMI = (weightStr, heightStr) => {
+    const w = parseFloat(weightStr);
+    const h = parseFloat(heightStr);
+    if (!w || !h || h === 0) return null;
+    const bmi = w / ((h / 100) ** 2);
+    return Math.round(bmi * 10) / 10;
+  };
+
+  const getBMICategory = (bmi) => {
+    if (bmi < 18.5) return { label: 'Underweight', color: '#E67E22' };
+    if (bmi < 25) return { label: 'Normal weight', color: '#27AE60' };
+    if (bmi < 30) return { label: 'Overweight', color: '#F39C12' };
+    return { label: 'Obese', color: '#C0392B' };
+  };
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -251,6 +265,8 @@ export default function ProfileScreen({ navigation }) {
   // Support both old (height/weight) and new (height_cm/weight_kg) field names
   const heightDisplay = profile?.height_cm ?? profile?.height ?? '-';
   const weightDisplay = profile?.weight_kg ?? profile?.weight ?? '-';
+  const bmi = calculateBMI(profile?.weight, profile?.height);
+  const bmiCategory = bmi !== null ? getBMICategory(bmi) : null;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -266,6 +282,13 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.metricPill}><Text style={styles.metricText}>{heightDisplay} cm</Text></View>
           <View style={styles.metricPill}><Text style={styles.metricText}>{weightDisplay} kg</Text></View>
         </View>
+
+        {bmi !== null && bmiCategory && (
+          <View style={[styles.bmiCard, { borderLeftColor: bmiCategory.color }]}>
+            <Text style={styles.bmiValue}>BMI: {bmi.toFixed(1)}</Text>
+            <Text style={[styles.bmiLabel, { color: bmiCategory.color }]}>{bmiCategory.label}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -492,6 +515,23 @@ const createStyles = (theme) => StyleSheet.create({
   metricsRow: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   metricPill: { flex: 1, borderRadius: 999, backgroundColor: theme.primaryLight, paddingVertical: 7, alignItems: 'center' },
   metricText: { fontSize: 12, color: theme.primary, fontWeight: '600' },
+  bmiCard: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    backgroundColor: theme.card,
+  },
+  bmiValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.textPrimary,
+  },
+  bmiLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: theme.textPrimary, marginBottom: 10 },
   riskBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start', marginBottom: 10 },
   riskText: { fontSize: 12, fontWeight: '700' },

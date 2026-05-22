@@ -71,6 +71,20 @@ const emptyConditions = () =>
 export default function ProfileSetupScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const calculateBMI = (weightStr, heightStr) => {
+    const w = parseFloat(weightStr);
+    const h = parseFloat(heightStr);
+    if (!w || !h || h === 0) return null;
+    const bmi = w / ((h / 100) ** 2);
+    return Math.round(bmi * 10) / 10;
+  };
+
+  const getBMICategory = (bmi) => {
+    if (bmi < 18.5) return { label: 'Underweight', color: '#E67E22' };
+    if (bmi < 25) return { label: 'Normal weight', color: '#27AE60' };
+    if (bmi < 30) return { label: 'Overweight', color: '#F39C12' };
+    return { label: 'Obese', color: '#C0392B' };
+  };
   const mode = route.params?.mode === 'edit' ? 'edit' : 'create';
   const existingName = route.params?.fullName || '';
 
@@ -87,6 +101,8 @@ export default function ProfileSetupScreen({ navigation, route }) {
   const [showTier3, setShowTier3] = useState(false);
   const [error, setError] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(mode === 'edit');
+  const bmi = calculateBMI(weight, height);
+  const bmiCategory = bmi !== null ? getBMICategory(bmi) : null;
 
   useEffect(() => {
     let mounted = true;
@@ -175,12 +191,15 @@ export default function ProfileSetupScreen({ navigation, route }) {
           .filter(([, val]) => val)
           .map(([key]) => key);
 
+    const bmi = calculateBMI(weight, height);
+
     const profile = {
       fullName,
       name: fullName,
       age: ageNum,
       height: heightNum,
       weight: weightNum,
+      bmi: bmi ?? null,
       dietaryPreference,
       coffee_tea_frequency: coffeeTeaFrequency,
       exercise_frequency: exerciseFrequency,
@@ -298,6 +317,13 @@ export default function ProfileSetupScreen({ navigation, route }) {
           placeholder="55"
           placeholderTextColor={theme.textSecondary}
         />
+
+        {bmi !== null && bmiCategory && (
+          <View style={[styles.bmiCard, { borderLeftColor: bmiCategory.color }]}>
+            <Text style={styles.bmiValue}>BMI: {bmi.toFixed(1)}</Text>
+            <Text style={[styles.bmiLabel, { color: bmiCategory.color }]}>{bmiCategory.label}</Text>
+          </View>
+        )}
 
         <Text style={globalStyles.label}>Average Sleep Hours (4–12) *</Text>
         <TextInput
@@ -419,6 +445,23 @@ const createStyles = (theme) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: theme.background },
   scroll: { padding: 20, paddingBottom: 40 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, gap: 8 },
+  bmiCard: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    backgroundColor: theme.card,
+  },
+  bmiValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.textPrimary,
+  },
+  bmiLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
 
   chip: {
     paddingHorizontal: 14,
