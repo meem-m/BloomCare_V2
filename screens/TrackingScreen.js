@@ -49,13 +49,28 @@ const emptyLog = () => ({
   fatigue: 5,
   energy: 5,
   symptoms: {},
-  foods: { ironRich: [], ironBlocking: [], vitaminC: [], other: [] },
+  foods: {
+    ironRich: [],
+    ironBlocking: [],
+    vitaminC: [],
+    staples: [],
+    dairy: [],
+    junk: [],
+  },
   lifestyle: { water: 6, sleep: 7, activity: 'light', mood: 3, stress: 'low' },
 });
 
 export default function TrackingScreen({ navigation }) {
   const { theme: colors } = useTheme();
   const styles = createStyles(colors);
+  const CATEGORY_ACCENT = {
+  ironRich: colors.primary,
+  ironBlocking: colors.warning || '#e67e22',
+  vitaminC: colors.success,
+  staples: '#8e7b5e',
+  dairy: '#5b9bd5',
+  junk: colors.error || '#e74c3c',
+};
   const [alreadyLogged, setAlreadyLogged] = useState(false);
   const [todaysLog, setTodaysLog] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -169,6 +184,11 @@ export default function TrackingScreen({ navigation }) {
     .slice(0, 3)
     .map((item) => item.label);
 
+  const getFoodCategoryKey = (category) => {
+  const validKeys = ['ironRich', 'ironBlocking', 'vitaminC', 'staples', 'dairy', 'junk'];
+  return validKeys.includes(category) ? category : 'ironRich';
+};
+
   if (alreadyLogged && !editMode && todaysLog) {
     return (
       <ScrollView style={[globalStyles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.loggedContent}>
@@ -266,32 +286,53 @@ export default function TrackingScreen({ navigation }) {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>🍽️ What did you eat today?</Text>
-        {allFoodCategories.map((cat) => (
-          <View key={cat.title}>
-            <Text style={styles.foodSubHeader}>{cat.title}</Text>
-            {cat.foods.map((food) => {
-              const catKey =
-                food.category === 'ironRich'
-                  ? 'ironRich'
-                  : food.category === 'ironBlocking'
-                    ? 'ironBlocking'
-                    : food.category === 'vitaminC'
-                      ? 'vitaminC'
-                      : 'other';
-              const selected = log.foods?.[catKey]?.includes(food.id);
-              return (
-                <TouchableOpacity
-                  key={food.id}
-                  style={[styles.foodRow, selected && styles.foodSelected]}
-                  onPress={() => toggleFood(catKey, food.id)}
-                >
-                  <Text>{food.emoji} {food.label}</Text>
-                  <Text>{selected ? '☑️' : '⬜'}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
+        {allFoodCategories.map((cat, index) => {
+          const categoryKey = cat.categoryKey || 'ironRich';
+          const selectedCount = cat.foods.filter((food) => {
+            const catKey = getFoodCategoryKey(food.category);
+            return log.foods?.[catKey]?.includes(food.id);
+          }).length;
+
+          return (
+            <View key={cat.title}>
+              {index > 0 && <View style={styles.foodDivider} />}
+              <View
+                style={[
+                  styles.foodCategoryHeader,
+                  { borderLeftColor: CATEGORY_ACCENT[categoryKey] || colors.textSecondary },
+                ]}
+              >
+                <Text style={styles.foodCategoryTitle}>{cat.title}</Text>
+                {selectedCount > 0 && (
+                  <Text style={styles.foodCategoryBadge}>{selectedCount} selected</Text>
+                )}
+              </View>
+              <View style={styles.foodGrid}>
+                {cat.foods.map((food) => {
+                  const catKey = getFoodCategoryKey(food.category);
+                  const selected = log.foods?.[catKey]?.includes(food.id);
+                  return (
+                    <TouchableOpacity
+                      key={food.id}
+                      style={[styles.foodCell, selected && styles.foodCellActive]}
+                      onPress={() => toggleFood(catKey, food.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.foodDot, selected && styles.foodDotActive]} />
+                      <Text style={styles.foodEmoji}>{food.emoji}</Text>
+                      <Text
+                        style={[styles.foodLabel, selected && styles.foodLabelActive]}
+                        numberOfLines={2}
+                      >
+                        {food.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
       </View>
 
       <View style={styles.sectionCard}>
@@ -494,6 +535,80 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 12,
     marginBottom: 8,
+  },
+  foodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  foodCell: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  foodCellActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  foodDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    marginRight: 8,
+  },
+  foodDotActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  foodEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  foodLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  foodLabelActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  foodCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingLeft: 10,
+    borderLeftWidth: 4,
+  },
+  foodCategoryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  foodCategoryBadge: {
+    marginLeft: 8,
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  foodDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: 8,
+    marginBottom: 4,
   },
   // ----- New 2-column symptom grid styles -----
   symptomGrid: {
