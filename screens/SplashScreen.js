@@ -12,7 +12,6 @@ export default function SplashScreen({ navigation }) {
 
   useEffect(() => {
     const init = async () => {
-      // Brief splash display
       await new Promise((r) => setTimeout(r, 1500));
 
       // 1. Onboarding check
@@ -28,13 +27,12 @@ export default function SplashScreen({ navigation }) {
         return;
       }
 
-      // 2. Session check — wrap in try/catch because expired refresh tokens throw
+      // 2. Session check
       let session = null;
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) {
           console.warn('getSession error:', error.message);
-          // Clear any bad session token before routing to login
           await supabase.auth.signOut().catch(() => {});
         } else {
           session = data?.session;
@@ -49,30 +47,37 @@ export default function SplashScreen({ navigation }) {
         return;
       }
 
-      // 3. Profile check — using the new Supabase-backed profileService
+      const userId = session.user.id;
+      console.log('User ID:', userId);
+
+      // 3. Profile check
       let profile = null;
       try {
-        profile = await getProfile(session.user.id);
+        profile = await getProfile(userId);
+        console.log('Attempt 1 profile:', JSON.stringify(profile));
       } catch (e) {
-        console.warn('Profile fetch failed:', e?.message);
+        console.warn('Profile fetch attempt 1 failed:', e?.message);
       }
 
-      // Pre-warm cache: kick off background fetch of last 7 days logs in parallel
-      // Don't await this — let it complete in the background
-      if (session.user.id) {
-        getLogs(session.user.id, 7).catch((err) => {
-          console.warn('Background cache warm failed:', err?.message);
-        });
+      if (!profile) {
+        await new Promise((r) => setTimeout(r, 800));
+        try {
+          profile = await getProfile(userId);
+          console.log('Attempt 2 profile:', JSON.stringify(profile));
+        } catch (e) {
+          console.warn('Profile fetch attempt 2 failed:', e?.message);
+        }
       }
 
-      // Check required fields (supports both old and new schema field names)
-      const hasRequiredFields =
-        profile
-        && profile.age != null
-        && (profile.height_cm != null || profile.height != null)
-        && (profile.weight_kg != null || profile.weight != null);
+      console.log('Final profile:', JSON.stringify(profile));
+      console.log('Going to:', profile ? 'Main' : 'ProfileSetup');
 
-      if (hasRequiredFields) {
+      // Pre-warm logs cache in background
+      getLogs(userId, 7).catch((err) => {
+        console.warn('Background cache warm failed:', err?.message);
+      });
+
+      if (profile) {
         navigation.replace('Main');
       } else {
         navigation.replace('ProfileSetup', {
@@ -84,7 +89,6 @@ export default function SplashScreen({ navigation }) {
 
     init().catch((e) => {
       console.error('Splash init fatal:', e);
-      // Safe fallback — send to login
       navigation.replace('Login');
     });
   }, [navigation]);
@@ -95,7 +99,11 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.logo}>🌸</Text>
         <Text style={styles.title}>BloomCare</Text>
         <Text style={styles.tagline}>Your Health, Your Power</Text>
-        <ActivityIndicator size="large" color={theme.primary} style={styles.loader} />
+        <ActivityIndicator
+          size="large"
+          color={theme.primary}
+          style={styles.loader}
+        />
       </View>
     </SafeAreaView>
   );
@@ -110,7 +118,16 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.background,
   },
   logo: { fontSize: 80, marginBottom: 16 },
-  title: { fontSize: 32, fontWeight: 'bold', color: theme.primary, marginBottom: 8 },
-  tagline: { fontSize: 16, color: theme.textSecondary, textAlign: 'center' },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.primary,
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 16,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
   loader: { marginTop: 40 },
 });

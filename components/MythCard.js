@@ -6,10 +6,11 @@ import { globalStyles } from '../constants/styles';
 export default function MythCard({ myth, compact }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+
   const verdictColors = {
-    BUSTED: { bg: '#FADBD8', text: theme.danger, label: 'BUSTED' },
-    'PARTIALLY TRUE': { bg: '#FDEBD0', text: theme.warning, label: 'PARTIALLY TRUE' },
-    TRUE: { bg: '#D5F5E3', text: theme.success, label: 'TRUE' },
+    BUSTED:           { bg: '#FADBD8', text: theme.danger,   label: 'BUSTED' },
+    'PARTIALLY TRUE': { bg: '#FDEBD0', text: theme.warning,  label: 'PARTIALLY TRUE' },
+    TRUE:             { bg: '#D5F5E3', text: theme.success,   label: 'TRUE' },
   };
 
   const v = verdictColors[myth.verdict] || verdictColors.BUSTED;
@@ -44,7 +45,7 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  emoji: { fontSize: 28 },
+  emoji: { fontSize: 18 },
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,

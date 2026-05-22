@@ -30,7 +30,6 @@ export const saveProfile = async (userId, profileData) => {
   };
 
   try {
-    // Try to upsert to Supabase
     const { error } = await supabase
       .from('profiles')
       .upsert(
@@ -40,22 +39,44 @@ export const saveProfile = async (userId, profileData) => {
 
     if (error) throw error;
 
-    // Cache in AsyncStorage
     const cached = {
-      ...profile,
-      fullName: profile.name,
-      medicalConditions: buildMedicalConditionsArray(profile),
-      dietaryPreference: profile.diet_type === 'non_vegetarian' ? 'Omnivore' : profile.diet_type,
+      name:                 profile.name,
+      fullName:             profile.name,
+      age:                  profile.age,
+      height:               profile.height_cm,
+      height_cm:            profile.height_cm,
+      weight:               profile.weight_kg,
+      weight_kg:            profile.weight_kg,
+      bmi:                  profile.bmi,
+      dietaryPreference:    profile.diet_type === 'non_vegetarian'
+                              ? 'Omnivore' : profile.diet_type,
+      diet_type:            profile.diet_type,
+      medicalConditions:    buildMedicalConditionsArray(profile),
+      medical_conditions:   profile.medical_conditions,
+      coffee_tea_frequency: profile.coffee_tea_frequency,
+      exercise_frequency:   profile.exercise_frequency,
+      avg_sleep_hours:      profile.avg_sleep_hours,
     };
     await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(cached));
   } catch (err) {
     console.error('Error saving profile:', err);
-    // Still try to save to cache for offline mode
     const cached = {
-      ...profile,
-      fullName: profile.name,
-      medicalConditions: buildMedicalConditionsArray(profile),
-      dietaryPreference: profile.diet_type === 'non_vegetarian' ? 'Omnivore' : profile.diet_type,
+      name:                 profile.name,
+      fullName:             profile.name,
+      age:                  profile.age,
+      height:               profile.height_cm,
+      height_cm:            profile.height_cm,
+      weight:               profile.weight_kg,
+      weight_kg:            profile.weight_kg,
+      bmi:                  profile.bmi,
+      dietaryPreference:    profile.diet_type === 'non_vegetarian'
+                              ? 'Omnivore' : profile.diet_type,
+      diet_type:            profile.diet_type,
+      medicalConditions:    buildMedicalConditionsArray(profile),
+      medical_conditions:   profile.medical_conditions,
+      coffee_tea_frequency: profile.coffee_tea_frequency,
+      exercise_frequency:   profile.exercise_frequency,
+      avg_sleep_hours:      profile.avg_sleep_hours,
     };
     await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(cached));
   }
@@ -68,9 +89,8 @@ const buildMedicalConditionsArray = (profile) => {
   if (Array.isArray(profile.medical_conditions) && profile.medical_conditions.length > 0) {
     return profile.medical_conditions;
   }
-  // Legacy fallback for old boolean fields
   const conditions = [];
-  if (profile.has_thyroid) conditions.push('thyroid');
+  if (profile.has_thyroid)  conditions.push('thyroid');
   if (profile.has_diabetes) conditions.push('diabetes');
   if (profile.other_conditions) {
     conditions.push(
@@ -82,53 +102,70 @@ const buildMedicalConditionsArray = (profile) => {
 
 /**
  * Get profile with stale-while-revalidate pattern.
- * Returns cache immediately if available, then fetches fresh data in background.
- * Optional callback fires when fresh data arrives from Supabase.
  */
 export const getProfile = async (userId, onFreshData) => {
   if (!userId) return null;
 
-  // Return cached profile immediately if available
+  // Check cache but only use it if it has essential fields
   const cached = await AsyncStorage.getItem(getCacheKey(userId));
   if (cached) {
     const profile = JSON.parse(cached);
-    // Kick off background fetch in parallel
-    setImmediate(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
+    const isValid = !!(
+      profile.name &&
+      profile.age &&
+      (profile.height_cm || profile.height)
+    );
 
-        if (error && error.code !== 'PGRST116') throw error;
+    if (isValid) {
+      // Cache is good — return immediately and refresh in background
+      setImmediate(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
 
-        if (data) {
-          const freshProfile = {
-            name:                 data.name,
-            fullName:             data.name,
-            age:                  data.age,
-            height:               data.height_cm,
-            weight:               data.weight_kg,
-            bmi:                  data.bmi ?? null,
-            dietaryPreference:    data.diet_type === 'non_vegetarian'
-                            ? 'Omnivore' : data.diet_type,
-            medicalConditions:    buildMedicalConditionsArray(data),
-            coffee_tea_frequency: data.coffee_tea_frequency,
-            exercise_frequency: data.exercise_frequency,
-            avg_sleep_hours: data.avg_sleep_hours,
-          };
-          await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(freshProfile));
-          onFreshData?.(freshProfile);
+          if (error && error.code !== 'PGRST116') throw error;
+
+          if (data) {
+            const freshProfile = {
+              name:                 data.name,
+              fullName:             data.name,
+              age:                  data.age,
+              height:               data.height_cm,
+              height_cm:            data.height_cm,
+              weight:               data.weight_kg,
+              weight_kg:            data.weight_kg,
+              bmi:                  data.bmi ?? null,
+              dietaryPreference:    data.diet_type === 'non_vegetarian'
+                                      ? 'Omnivore' : data.diet_type,
+              diet_type:            data.diet_type,
+              medicalConditions:    buildMedicalConditionsArray(data),
+              medical_conditions:   data.medical_conditions,
+              coffee_tea_frequency: data.coffee_tea_frequency,
+              exercise_frequency:   data.exercise_frequency,
+              avg_sleep_hours:      data.avg_sleep_hours,
+            };
+            await AsyncStorage.setItem(
+              getCacheKey(userId),
+              JSON.stringify(freshProfile)
+            );
+            onFreshData?.(freshProfile);
+          }
+        } catch (err) {
+          console.warn('Background profile fetch failed:', err);
         }
-      } catch (err) {
-        console.warn('Background profile fetch failed:', err);
-      }
-    });
-    return profile;
+      });
+      return profile;
+    } else {
+      // Cache is incomplete — delete it and fetch fresh
+      console.log('Cache incomplete — fetching fresh from Supabase');
+      await AsyncStorage.removeItem(getCacheKey(userId));
+    }
   }
 
-  // No cache: fetch from Supabase
+  // No cache or invalid cache — fetch from Supabase
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -144,14 +181,18 @@ export const getProfile = async (userId, onFreshData) => {
         fullName:             data.name,
         age:                  data.age,
         height:               data.height_cm,
+        height_cm:            data.height_cm,
         weight:               data.weight_kg,
+        weight_kg:            data.weight_kg,
         bmi:                  data.bmi ?? null,
         dietaryPreference:    data.diet_type === 'non_vegetarian'
-                            ? 'Omnivore' : data.diet_type,
+                                ? 'Omnivore' : data.diet_type,
+        diet_type:            data.diet_type,
         medicalConditions:    buildMedicalConditionsArray(data),
+        medical_conditions:   data.medical_conditions,
         coffee_tea_frequency: data.coffee_tea_frequency,
-        exercise_frequency: data.exercise_frequency,
-        avg_sleep_hours: data.avg_sleep_hours,
+        exercise_frequency:   data.exercise_frequency,
+        avg_sleep_hours:      data.avg_sleep_hours,
       };
       await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
       return profile;
@@ -189,9 +230,6 @@ export const updateProfile = async (userId, partialData) => {
         ? 'non_vegetarian'
         : partialData.dietaryPreference.toLowerCase();
     }
-
-    // Fetch current profile to merge medical conditions if needed
-    const current = await getProfile(userId);
     if (partialData.medicalConditions !== undefined) {
       updateData.medical_conditions = Array.isArray(partialData.medicalConditions)
         ? partialData.medicalConditions
@@ -201,7 +239,6 @@ export const updateProfile = async (userId, partialData) => {
       updateData.bmi = partialData.bmi;
     }
 
-    // Update Supabase
     const { error } = await supabase
       .from('profiles')
       .update(updateData)
@@ -209,12 +246,13 @@ export const updateProfile = async (userId, partialData) => {
 
     if (error) throw error;
 
-    // Update cache
-    const updated = { ...current, ...partialData };
-    await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(updated));
+    const current = await AsyncStorage.getItem(getCacheKey(userId));
+    if (current) {
+      const updated = { ...JSON.parse(current), ...partialData };
+      await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(updated));
+    }
   } catch (err) {
     console.error('Error updating profile:', err);
-    // Cache update as fallback
     const current = await AsyncStorage.getItem(getCacheKey(userId));
     if (current) {
       const updated = { ...JSON.parse(current), ...partialData };
@@ -236,14 +274,10 @@ export const profileExists = async (userId) => {
       .eq('user_id', userId)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
+    if (error && error.code !== 'PGRST116') throw error;
     return !!data;
   } catch (err) {
     console.warn('Error checking profile existence:', err);
-    // Fall back to checking cache
     const cached = await AsyncStorage.getItem(getCacheKey(userId));
     return !!cached;
   }
