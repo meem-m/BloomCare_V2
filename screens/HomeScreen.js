@@ -49,22 +49,22 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // Check if profile exists first
       const initialProfile = await getProfileFromService(user.id);
       if (!initialProfile) {
         setLoading(false);
-        navigation.reset({ index: 0, routes: [{ name: 'ProfileSetup', params: { mode: 'create' } }] });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ProfileSetup', params: { mode: 'create' } }],
+        });
         return;
       }
 
       setProfile(initialProfile);
 
-      // Load today's log immediately
       const today = new Date();
       const todayLogData = await getDailyLog(user.id, today);
       setTodayLog(todayLogData);
 
-      // Parallel load profile and logs with stale-while-revalidate callbacks
       setIsRefreshingBg(true);
       await Promise.all([
         getProfileFromService(user.id, (freshProfile) => {
@@ -83,10 +83,11 @@ export default function HomeScreen({ navigation }) {
       ]);
       setIsRefreshingBg(false);
 
-      // Load streak and logs for initial render
       const allLogs = (await getLogs(user.id, 7)) || [];
-      const validLogs = allLogs.map((entry) => entry.log || entry).filter(Boolean);
-      
+      const validLogs = allLogs
+        .map((entry) => entry.log || entry)
+        .filter(Boolean);
+
       let r = null;
       if (validLogs.length >= 7) {
         try {
@@ -143,7 +144,8 @@ export default function HomeScreen({ navigation }) {
   });
 
   const myth = getMythOfTheDay();
-  const firstName = (profile?.fullName || profile?.name || '').split(' ')[0] || 'Sister';
+  const firstName =
+    (profile?.fullName || profile?.name || '').split(' ')[0] || 'Sister';
 
   const renderRiskCard = () => {
     if (logCount === 0) {
@@ -174,7 +176,15 @@ export default function HomeScreen({ navigation }) {
     }
 
     return (
-      <View style={[styles.riskCard, { backgroundColor: `${risk?.color || theme.success}18`, borderColor: risk?.color || theme.success }] }>
+      <View
+        style={[
+          styles.riskCard,
+          {
+            backgroundColor: `${risk?.color || theme.success}18`,
+            borderColor: risk?.color || theme.success,
+          },
+        ]}
+      >
         <Text style={styles.riskLabel}>Weekly Risk Level</Text>
         <View style={[styles.levelBadge, { backgroundColor: risk?.color || theme.success }]}>
           <Text style={styles.levelBadgeText}>{risk?.level || 'Low'}</Text>
@@ -193,9 +203,7 @@ export default function HomeScreen({ navigation }) {
       <Text style={styles.greeting}>Assalam o Alaikum, {firstName} 👋</Text>
       <Text style={styles.date}>{today}</Text>
 
-      <View style={styles.block}>
-        {renderRiskCard()}
-      </View>
+      <View style={styles.block}>{renderRiskCard()}</View>
 
       <View style={styles.statsRow}>
         <StatCard
@@ -213,14 +221,18 @@ export default function HomeScreen({ navigation }) {
           label="Mood"
           value={
             todayLog
-              ? MOOD_EMOJIS[todayLog.lifestyle?.mood] || '😐'
+              ? MOOD_EMOJIS[todayLog.lifestyle?.mood ?? todayLog.mood] || '😐'
               : '-'
           }
         />
       </View>
 
       <TouchableOpacity
-        style={[globalStyles.primaryButton, { backgroundColor: theme.primary }, styles.block]}
+        style={[
+          globalStyles.primaryButton,
+          { backgroundColor: theme.primary },
+          styles.block,
+        ]}
         onPress={() => navigation.navigate('Tracking')}
       >
         <Text style={globalStyles.primaryButtonText}>Log Today 📋</Text>
@@ -299,12 +311,12 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   welcomeCard: {
-    backgroundColor: '#F5F6F7',
-    borderColor: theme.grey,
+    backgroundColor: theme.card,
+    borderColor: theme.border,
   },
   progressCard: {
-    borderColor: theme.warning,
-    backgroundColor: '#FFF6EA',
+    borderColor: theme.warning || '#F39C12',
+    backgroundColor: theme.primaryLight || '#FFF6EA',
     alignItems: 'flex-start',
   },
   riskLabel: {
@@ -329,7 +341,7 @@ const createStyles = (theme) => StyleSheet.create({
     height: 10,
     width: '100%',
     borderRadius: 999,
-    backgroundColor: '#F8D9BA',
+    backgroundColor: theme.border,
     overflow: 'hidden',
   },
   progressFill: {
@@ -341,7 +353,7 @@ const createStyles = (theme) => StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
     fontWeight: '600',
-    color: theme.warning,
+    color: theme.warning || '#F39C12',
   },
   progressSubtitle: {
     marginTop: 6,

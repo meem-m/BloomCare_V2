@@ -33,13 +33,23 @@ export const saveDailyLog = async (userId, logData, date = new Date()) => {
   if (!userId) return;
 
   const logDate = typeof date === 'string' ? date : formatDateKey(date);
+  const foodsToStore = {
+    ...(logData.foods || {}),
+    _water: logData.lifestyle?.water ?? 6,
+    _activity: logData.lifestyle?.activity ?? 'light',
+    _stress: logData.lifestyle?.stress ?? 'low',
+    _shortnessOfBreath: logData.symptoms?.shortnessOfBreath || false,
+    _heartPalpitations: logData.symptoms?.heartPalpitations || false,
+    _coldHandsFeet: logData.symptoms?.coldHandsFeet || false,
+    _paleAppearance: logData.symptoms?.paleAppearance || false,
+  };
   const log = {
-    mood: logData.mood || logData.lifestyle?.mood || 5,
+    mood: logData.lifestyle?.mood || logData.mood || 3,
     energy: logData.energy || 5,
     fatigue: logData.fatigue || 5,
-    dizziness: logData.symptoms?.dizziness ? 2 : 0, // Convert boolean to 0-3 scale
+    dizziness: logData.symptoms?.dizziness ? 2 : 0,
     headache: logData.symptoms?.headache ? 2 : 0,
-    foods_consumed: JSON.stringify(logData.foods || {}),
+    foods_consumed: JSON.stringify(foodsToStore),
     sleep_hours: logData.lifestyle?.sleep || 7,
     exercise_minutes: logData.exercise_minutes || 0,
   };
@@ -219,6 +229,14 @@ export const getLast7DaysLogs = async (userId) => {
  * Convert Supabase log format to local format
  */
 const convertSupabaseLogToLocal = (supabaseLog) => {
+  let foods = {};
+  try {
+    foods = supabaseLog.foods_consumed ? JSON.parse(supabaseLog.foods_consumed) : {};
+  } catch {
+    foods = {};
+  }
+
+  // Ensure all 6 food category keys exist
   return {
     mood: supabaseLog.mood,
     energy: supabaseLog.energy,
@@ -226,14 +244,25 @@ const convertSupabaseLogToLocal = (supabaseLog) => {
     symptoms: {
       dizziness: supabaseLog.dizziness > 0,
       headache: supabaseLog.headache > 0,
-      shortnessOfBreath: false,
-      heartPalpitations: false,
-      coldHandsFeet: false,
-      paleAppearance: false,
+      shortnessOfBreath: foods._shortnessOfBreath || false,
+      heartPalpitations: foods._heartPalpitations || false,
+      coldHandsFeet: foods._coldHandsFeet || false,
+      paleAppearance: foods._paleAppearance || false,
     },
-    foods: supabaseLog.foods_consumed ? JSON.parse(supabaseLog.foods_consumed) : {},
+    foods: {
+      ironRich: foods.ironRich || [],
+      ironBlocking: foods.ironBlocking || [],
+      vitaminC: foods.vitaminC || [],
+      staples: foods.staples || [],
+      dairy: foods.dairy || [],
+      junk: foods.junk || [],
+    },
     lifestyle: {
       sleep: supabaseLog.sleep_hours,
+      water: foods._water ?? 6,
+      activity: foods._activity ?? 'light',
+      mood: supabaseLog.mood,
+      stress: foods._stress ?? 'low',
     },
     exercise_minutes: supabaseLog.exercise_minutes,
   };
@@ -262,13 +291,23 @@ export const syncPendingLogs = async (userId) => {
   let syncedCount = 0;
   for (const [logDate, logData] of entries) {
     try {
+      const foodsToStore = {
+        ...(logData.foods || {}),
+        _water: logData.lifestyle?.water ?? 6,
+        _activity: logData.lifestyle?.activity ?? 'light',
+        _stress: logData.lifestyle?.stress ?? 'low',
+        _shortnessOfBreath: logData.symptoms?.shortnessOfBreath || false,
+        _heartPalpitations: logData.symptoms?.heartPalpitations || false,
+        _coldHandsFeet: logData.symptoms?.coldHandsFeet || false,
+        _paleAppearance: logData.symptoms?.paleAppearance || false,
+      };
       const log = {
-        mood: logData.mood || logData.lifestyle?.mood || 5,
+        mood: logData.lifestyle?.mood || logData.mood || 3,
         energy: logData.energy || 5,
         fatigue: logData.fatigue || 5,
         dizziness: logData.symptoms?.dizziness ? 2 : 0,
         headache: logData.symptoms?.headache ? 2 : 0,
-        foods_consumed: JSON.stringify(logData.foods || {}),
+        foods_consumed: JSON.stringify(foodsToStore),
         sleep_hours: logData.lifestyle?.sleep || 7,
         exercise_minutes: logData.exercise_minutes || 0,
       };

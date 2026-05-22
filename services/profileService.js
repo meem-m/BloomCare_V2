@@ -10,22 +10,23 @@ export const saveProfile = async (userId, profileData) => {
   if (!userId) return;
 
   const profile = {
-    name: profileData.name || profileData.fullName || '',
-    age: profileData.age ? parseInt(profileData.age, 10) : null,
-    weight_kg: profileData.weight ? parseFloat(profileData.weight) : null,
-    height_cm: profileData.height ? parseFloat(profileData.height) : null,
-    ...(profileData.bmi !== undefined ? { bmi: profileData.bmi } : {}),
-    diet_type: profileData.dietaryPreference
-      ? (profileData.dietaryPreference === 'Omnivore' ? 'non_vegetarian' : profileData.dietaryPreference.toLowerCase())
-      : null,
+    name:                 profileData.name || profileData.fullName || '',
+    age:                  profileData.age ? parseInt(profileData.age, 10) : null,
+    weight_kg:            profileData.weight ? parseFloat(profileData.weight) : null,
+    height_cm:            profileData.height ? parseFloat(profileData.height) : null,
+    bmi:                  profileData.bmi ?? null,
+    diet_type:            profileData.dietaryPreference
+                            ? (profileData.dietaryPreference === 'Omnivore'
+                                ? 'non_vegetarian'
+                                : profileData.dietaryPreference.toLowerCase())
+                            : null,
     coffee_tea_frequency: profileData.coffee_tea_frequency || 'never',
-    exercise_frequency: profileData.exercise_frequency || 'weekly',
-    avg_sleep_hours: profileData.avg_sleep_hours ? parseFloat(profileData.avg_sleep_hours) : 7,
-    has_thyroid: profileData.medicalConditions?.includes('Thyroid Disorder') || false,
-    has_diabetes: profileData.medicalConditions?.includes('Diabetes') || false,
-    other_conditions: profileData.medicalConditions
-      ?.filter((c) => !['Thyroid Disorder', 'Diabetes'].includes(c) && c !== 'None of the above')
-      .join(', ') || null,
+    exercise_frequency:   profileData.exercise_frequency   || 'weekly',
+    avg_sleep_hours:      profileData.avg_sleep_hours
+                            ? parseFloat(profileData.avg_sleep_hours) : 7,
+    medical_conditions:   Array.isArray(profileData.medicalConditions)
+                            ? profileData.medicalConditions
+                            : ['noConditions'],
   };
 
   try {
@@ -64,13 +65,19 @@ export const saveProfile = async (userId, profileData) => {
  * Rebuild medicalConditions array from profile
  */
 const buildMedicalConditionsArray = (profile) => {
-  const conditions = [];
-  if (profile.has_thyroid) conditions.push('Thyroid Disorder');
-  if (profile.has_diabetes) conditions.push('Diabetes');
-  if (profile.other_conditions) {
-    conditions.push(...profile.other_conditions.split(', ').filter((c) => c));
+  if (Array.isArray(profile.medical_conditions) && profile.medical_conditions.length > 0) {
+    return profile.medical_conditions;
   }
-  return conditions.length > 0 ? conditions : ['None of the above'];
+  // Legacy fallback for old boolean fields
+  const conditions = [];
+  if (profile.has_thyroid) conditions.push('thyroid');
+  if (profile.has_diabetes) conditions.push('diabetes');
+  if (profile.other_conditions) {
+    conditions.push(
+      ...profile.other_conditions.split(', ').filter((c) => c)
+    );
+  }
+  return conditions.length > 0 ? conditions : ['noConditions'];
 };
 
 /**
@@ -98,14 +105,15 @@ export const getProfile = async (userId, onFreshData) => {
 
         if (data) {
           const freshProfile = {
-            name: data.name,
-            fullName: data.name,
-            age: data.age,
-            height: data.height_cm,
-            weight: data.weight_kg,
-            ...(data.bmi !== undefined && data.bmi !== null ? { bmi: data.bmi } : {}),
-            dietaryPreference: data.diet_type === 'non_vegetarian' ? 'Omnivore' : data.diet_type,
-            medicalConditions: buildMedicalConditionsArray(data),
+            name:                 data.name,
+            fullName:             data.name,
+            age:                  data.age,
+            height:               data.height_cm,
+            weight:               data.weight_kg,
+            bmi:                  data.bmi ?? null,
+            dietaryPreference:    data.diet_type === 'non_vegetarian'
+                            ? 'Omnivore' : data.diet_type,
+            medicalConditions:    buildMedicalConditionsArray(data),
             coffee_tea_frequency: data.coffee_tea_frequency,
             exercise_frequency: data.exercise_frequency,
             avg_sleep_hours: data.avg_sleep_hours,
@@ -132,14 +140,15 @@ export const getProfile = async (userId, onFreshData) => {
 
     if (data) {
       const profile = {
-        name: data.name,
-        fullName: data.name,
-        age: data.age,
-        height: data.height_cm,
-        weight: data.weight_kg,
-        ...(data.bmi !== undefined && data.bmi !== null ? { bmi: data.bmi } : {}),
-        dietaryPreference: data.diet_type === 'non_vegetarian' ? 'Omnivore' : data.diet_type,
-        medicalConditions: buildMedicalConditionsArray(data),
+        name:                 data.name,
+        fullName:             data.name,
+        age:                  data.age,
+        height:               data.height_cm,
+        weight:               data.weight_kg,
+        bmi:                  data.bmi ?? null,
+        dietaryPreference:    data.diet_type === 'non_vegetarian'
+                            ? 'Omnivore' : data.diet_type,
+        medicalConditions:    buildMedicalConditionsArray(data),
         coffee_tea_frequency: data.coffee_tea_frequency,
         exercise_frequency: data.exercise_frequency,
         avg_sleep_hours: data.avg_sleep_hours,
@@ -184,12 +193,12 @@ export const updateProfile = async (userId, partialData) => {
     // Fetch current profile to merge medical conditions if needed
     const current = await getProfile(userId);
     if (partialData.medicalConditions !== undefined) {
-      updateData.has_thyroid = partialData.medicalConditions.includes('Thyroid Disorder');
-      updateData.has_diabetes = partialData.medicalConditions.includes('Diabetes');
-      const other = partialData.medicalConditions
-        .filter((c) => !['Thyroid Disorder', 'Diabetes'].includes(c) && c !== 'None of the above')
-        .join(', ');
-      updateData.other_conditions = other || null;
+      updateData.medical_conditions = Array.isArray(partialData.medicalConditions)
+        ? partialData.medicalConditions
+        : ['noConditions'];
+    }
+    if (partialData.bmi !== undefined) {
+      updateData.bmi = partialData.bmi;
     }
 
     // Update Supabase

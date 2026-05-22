@@ -50,7 +50,6 @@ export default function ReportsScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load initial data in parallel
       const initialLogs = await getLogs(user.id, 7);
       const initialProfile = await getProfileFromService(user.id);
 
@@ -59,9 +58,12 @@ export default function ReportsScreen() {
 
       const validLogs = initialLogs.map((entry) => entry.log).filter(Boolean);
       setLogCount(validLogs.length);
-      setWeeklyRisk(validLogs.length >= 7 ? calculateWeeklyRisk(validLogs, initialProfile) : null);
+      setWeeklyRisk(
+        validLogs.length >= 7
+          ? calculateWeeklyRisk(validLogs, initialProfile)
+          : null
+      );
 
-      // Refresh in background with stale-while-revalidate pattern
       Promise.all([
         getProfileFromService(user.id, (freshProfile) => {
           setProfile(freshProfile);
@@ -89,15 +91,20 @@ export default function ReportsScreen() {
     return `${parts[2]}/${parts[1]}`;
   });
 
-  const fatigueData = logs.map((d) => d.log?.fatigue ?? 0);
-  const energyData = logs.map((d) => d.log?.energy ?? 0);
+  const fatigueData    = logs.map((d) => d.log?.fatigue ?? 0);
+  const energyData     = logs.map((d) => d.log?.energy ?? 0);
+  const ironRichData   = logs.map((d) => d.log?.foods?.ironRich?.length ?? 0);
+  const ironBlockData  = logs.map((d) => d.log?.foods?.ironBlocking?.length ?? 0);
+  const vitaminCData   = logs.map((d) => d.log?.foods?.vitaminC?.length ?? 0);
+  const junkData       = logs.map((d) => d.log?.foods?.junk?.length ?? 0);
 
-  const ironRichData = logs.map(
-    (d) => (d.log?.foods?.ironRich?.length ?? 0)
-  );
-  const ironBlockData = logs.map(
-    (d) => (d.log?.foods?.ironBlocking?.length ?? 0)
-  );
+  const getRiskColor = (log) => {
+    if (!log) return colors.grey;
+    const score = log.riskScore ?? 0;
+    if (score <= 15) return colors.success;
+    if (score <= 30) return colors.warning;
+    return colors.primary;
+  };
 
   const handleGenerateReport = async () => {
     setAiError('');
@@ -126,17 +133,14 @@ export default function ReportsScreen() {
     await Share.share({ message: summary });
   };
 
-  const getRiskColor = (log) => {
-    if (!log) return colors.grey;
-    if (log.riskScore <= 30) return colors.success;
-    if (log.riskScore <= 60) return colors.warning;
-    return colors.primary;
-  };
-
   return (
-    <ScrollView style={[globalStyles.container, { backgroundColor: colors.background }]} contentContainerStyle={globalStyles.scrollContent}>
+    <ScrollView
+      style={[globalStyles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={globalStyles.scrollContent}
+    >
       <Text style={globalStyles.heading}>Reports 📊</Text>
 
+      {/* ── Risk Score Card ── */}
       <View style={styles.topRiskCard}>
         <Text style={styles.topRiskTitle}>Your Risk Score</Text>
         {logCount < 7 ? (
@@ -158,6 +162,7 @@ export default function ReportsScreen() {
         )}
       </View>
 
+      {/* ── Charts ── */}
       <Text style={styles.sectionTitle}>This Week</Text>
       {logs.some((d) => d.log) ? (
         <>
@@ -197,6 +202,25 @@ export default function ReportsScreen() {
             showValuesOnTopOfBars
           />
 
+          <Text style={styles.chartLabel}>Vitamin C foods per day</Text>
+          <BarChart
+            data={{
+              labels,
+              datasets: [{ data: vitaminCData.length ? vitaminCData : [0] }],
+            }}
+            width={screenWidth}
+            height={180}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
+            }}
+            style={styles.chart}
+            yAxisLabel=""
+            yAxisSuffix=""
+            fromZero
+            showValuesOnTopOfBars
+          />
+
           <Text style={styles.chartLabel}>Iron-blocking foods per day</Text>
           <BarChart
             data={{
@@ -215,11 +239,31 @@ export default function ReportsScreen() {
             fromZero
             showValuesOnTopOfBars
           />
+
+          <Text style={styles.chartLabel}>Junk & fried foods per day</Text>
+          <BarChart
+            data={{
+              labels,
+              datasets: [{ data: junkData.length ? junkData : [0] }],
+            }}
+            width={screenWidth}
+            height={180}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(192, 57, 43, ${opacity})`,
+            }}
+            style={styles.chart}
+            yAxisLabel=""
+            yAxisSuffix=""
+            fromZero
+            showValuesOnTopOfBars
+          />
         </>
       ) : (
         <Text style={globalStyles.bodyText}>No logs yet this week. Start tracking!</Text>
       )}
 
+      {/* ── Risk Trend ── */}
       <Text style={styles.sectionTitle}>Risk Trend</Text>
       <View style={styles.trendRow}>
         {logs.map((d) => (
@@ -238,6 +282,7 @@ export default function ReportsScreen() {
         ))}
       </View>
 
+      {/* ── AI Report ── */}
       <Text style={styles.sectionTitle}>AI Report</Text>
       <TouchableOpacity
         style={[globalStyles.primaryButton, { backgroundColor: colors.primary }]}
@@ -249,7 +294,13 @@ export default function ReportsScreen() {
         </Text>
       </TouchableOpacity>
 
-      {loading && <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 16 }} />}
+      {loading && (
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 16 }}
+        />
+      )}
 
       {aiError ? <Text style={globalStyles.errorText}>{aiError}</Text> : null}
 
@@ -257,8 +308,11 @@ export default function ReportsScreen() {
         <View style={[globalStyles.card, { marginTop: 12 }]}>
           <Text style={styles.reportSection}>Overall Risk Assessment</Text>
           <Text style={[styles.riskBadge, {
-            color: aiReport.riskLevel === 'Low' ? colors.success
-              : aiReport.riskLevel === 'High' ? colors.danger : colors.warning,
+            color: aiReport.riskLevel === 'Low'
+              ? colors.success
+              : aiReport.riskLevel === 'High'
+                ? colors.danger
+                : colors.warning,
           }]}>
             {aiReport.riskLevel}
           </Text>
@@ -280,6 +334,7 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* ── Export ── */}
       <Text style={styles.sectionTitle}>Export</Text>
       <TouchableOpacity style={globalStyles.secondaryButton} onPress={handleShare}>
         <Text style={globalStyles.secondaryButtonText}>📤 Share Summary</Text>
@@ -328,7 +383,12 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 6,
   },
   riskBadge: { fontSize: 22, fontWeight: '800', marginBottom: 8 },
-  bullet: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, marginBottom: 4 },
+  bullet: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
   disclaimer: {
     fontSize: 11,
     color: colors.textSecondary,
@@ -342,6 +402,7 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 18,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,

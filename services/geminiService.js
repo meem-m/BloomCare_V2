@@ -3,45 +3,66 @@ const GEMINI_URL =
 
 const buildPrompt = (last7DaysLogs, userProfile) => {
   const loggedDays = last7DaysLogs.filter((d) => d.log);
-  const avgFatigue =
-    loggedDays.reduce((s, d) => s + (d.log.fatigue || 0), 0) / (loggedDays.length || 1);
-  const avgEnergy =
-    loggedDays.reduce((s, d) => s + (d.log.energy || 0), 0) / (loggedDays.length || 1);
-  const avgMood =
-    loggedDays.reduce((s, d) => s + (d.log.mood || 0), 0) / (loggedDays.length || 1);
-  const avgSleep =
-    loggedDays.reduce((s, d) => s + (d.log.sleep_hours || 0), 0) / (loggedDays.length || 1);
+  const n = loggedDays.length || 1;
 
+  const avg = (key) =>
+    loggedDays.reduce((s, d) => s + (d.log[key] || 0), 0) / n;
+
+  const avgFatigue = avg('fatigue');
+  const avgEnergy  = avg('energy');
+  const avgMood    = avg('mood');
+  const avgSleep   = loggedDays.reduce(
+    (s, d) => s + (d.log.lifestyle?.sleep || d.log.sleep_hours || 0), 0
+  ) / n;
+  const avgWater   = loggedDays.reduce(
+    (s, d) => s + (d.log.lifestyle?.water ?? 0), 0
+  ) / n;
+
+  // Symptom frequency counts
   const symptomCounts = {};
   loggedDays.forEach(({ log }) => {
-    const symptoms = log.symptoms || {};
-    Object.entries(symptoms).forEach(([k, v]) => {
+    Object.entries(log.symptoms || {}).forEach(([k, v]) => {
       if (v) symptomCounts[k] = (symptomCounts[k] || 0) + 1;
     });
   });
 
-  const riskTrend = loggedDays.map(({ date, log }) => {
-    const risk = log.riskScore ?? 'N/A';
-    return `${date}: score ${risk}`;
+  // Diet summary across 7 days
+  const dietSummary = {
+    ironRich:     0, vitaminC:   0, ironBlocking: 0,
+    staples:      0, dairy:      0, junk:         0,
+    noProperMeal: 0,
+  };
+  loggedDays.forEach(({ log }) => {
+    const f = log.foods || {};
+    dietSummary.ironRich     += (f.ironRich     || []).length;
+    dietSummary.vitaminC     += (f.vitaminC     || []).length;
+    dietSummary.ironBlocking += (f.ironBlocking || []).length;
+    dietSummary.staples      += (f.staples      || []).length;
+    dietSummary.dairy        += (f.dairy        || []).length;
+    dietSummary.junk         += (f.junk         || []).length;
+    if ((f.junk || []).includes('noProperMeal')) dietSummary.noProperMeal++;
   });
 
-  // Build profile info - handle both old and new formats
-  const getDiet = () => {
-    if (userProfile?.diet_type) return userProfile.diet_type;
-    if (userProfile?.dietaryPreference) return userProfile.dietaryPreference;
-    return 'unknown';
-  };
+  const riskTrend = loggedDays.map(({ date, log }) =>
+    `${date}: score ${log.riskScore ?? 'N/A'} (${log.riskLevel ?? 'unknown'})`
+  );
+
+  const getDiet = () =>
+    userProfile?.dietaryPreference || userProfile?.diet_type || 'unknown';
 
   const getConditions = () => {
     if (Array.isArray(userProfile?.medicalConditions)) {
-      return userProfile.medicalConditions.join(', ');
+      const filtered = userProfile.medicalConditions.filter(
+        (c) => c !== 'noConditions'
+      );
+      return filtered.length > 0 ? filtered.join(', ') : 'None';
     }
-    const conds = [];
-    if (userProfile?.has_thyroid) conds.push('Thyroid Disorder');
-    if (userProfile?.has_diabetes) conds.push('Diabetes');
-    if (userProfile?.other_conditions) conds.push(userProfile.other_conditions);
-    return conds.length > 0 ? conds.join(', ') : 'none';
+    return 'None';
   };
+
+  const bmiInfo = userProfile?.bmi
+    ? `BMI: ${userProfile.bmi}`
+    : '';
 
   return `You are a health assistant for Pakistani women tracking anemia risk. Analyze this data and respond EXACTLY in this format (no extra text):
 
@@ -57,20 +78,36 @@ LIFESTYLE TIP: ...
 DISCLAIMER: This is not a medical diagnosis. Please consult a doctor.
 
 USER PROFILE:
-- Age: ${userProfile?.age ?? 'unknown'}
+- Age: ${userProfile?.age ?? 'unknown'} ${bmiInfo}
 - Medical conditions: ${getConditions()}
 - Dietary preference: ${getDiet()}
-- Average sleep (hours): ${avgSleep.toFixed(1)}
+- Coffee/tea frequency: ${userProfile?.coffee_tea_frequency ?? 'unknown'}
+- Exercise frequency: ${userProfile?.exercise_frequency ?? 'unknown'}
 
 TRACKING SUMMARY (last 7 days, ${loggedDays.length} days logged):
 - Average fatigue (1-10): ${avgFatigue.toFixed(1)}
 - Average energy (1-10): ${avgEnergy.toFixed(1)}
-- Average mood (1-10): ${avgMood.toFixed(1)}
-- Frequent symptoms: ${JSON.stringify(symptomCounts)}
-- Risk trend: ${riskTrend.join('; ')}
+- Average mood (1-5): ${avgMood.toFixed(1)}
+- Average sleep (hours): ${avgSleep.toFixed(1)}
+- Average water (glasses): ${avgWater.toFixed(1)}
 
-Daily logs JSON:
-${JSON.stringify(loggedDays, null, 2)}`;
+SYMPTOM FREQUENCY (out of ${loggedDays.length} days):
+${JSON.stringify(symptomCounts, null, 2)}
+
+DIET SUMMARY (total items across ${loggedDays.length} days):
+- Iron-rich foods: ${dietSummary.ironRich} items
+- Vitamin C foods: ${dietSummary.vitaminC} items  
+- Iron blockers: ${dietSummary.ironBlocking} items
+- Staples/grains: ${dietSummary.staples} items
+- Dairy/drinks: ${dietSummary.dairy} items
+- Junk/fried foods: ${dietSummary.junk} items
+- Days with no proper meal: ${dietSummary.noProperMeal}
+
+RISK TREND:
+${riskTrend.join('\n')}
+
+Focus recommendations on Pakistani dietary context 
+(daal, saag, chanay, chai timing, etc.)`;
 };
 
 
