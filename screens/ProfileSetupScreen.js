@@ -117,30 +117,28 @@ export default function ProfileSetupScreen({ navigation, route }) {
         return;
       }
 
-      if (mode === 'edit') {
-        const saved = await getProfile(user.id);
-        if (saved && mounted) {
-          setFullName(saved.fullName || saved.name || existingName || '');
-          setAge(saved.age ? String(saved.age) : '');
-          setHeight(saved.height ? String(saved.height) : '');
-          setWeight(saved.weight ? String(saved.weight) : '');
-          setDietaryPreference(saved.dietaryPreference || '');
-          setCoffeeTeaFrequency(saved.coffee_tea_frequency || 'never');
-          setExerciseFrequency(saved.exercise_frequency || 'weekly');
-          setAvgSleepHours(saved.avg_sleep_hours ? String(saved.avg_sleep_hours) : '7');
+      const saved = await getProfile(user.id);
+      if (saved && mounted) {
+        setFullName(saved.fullName || saved.name || existingName || '');
+        setAge(saved.age ? String(saved.age) : '');
+        setHeight(saved.height ? String(saved.height) : '');
+        setWeight(saved.weight ? String(saved.weight) : '');
+        setDietaryPreference(saved.dietaryPreference || '');
+        setCoffeeTeaFrequency(saved.coffee_tea_frequency || 'never');
+        setExerciseFrequency(saved.exercise_frequency || 'weekly');
+        setAvgSleepHours(saved.avg_sleep_hours ? String(saved.avg_sleep_hours) : '7');
 
-          if (saved.medicalConditions && Array.isArray(saved.medicalConditions)) {
-            const restored = emptyConditions();
-            let anyActive = false;
-            saved.medicalConditions.forEach((c) => {
-              if (restored.hasOwnProperty(c)) {
-                restored[c] = true;
-                anyActive = true;
-              }
-            });
-            setConditions(restored);
-            setNoConditions(!anyActive);
-          }
+        if (saved.medicalConditions && Array.isArray(saved.medicalConditions)) {
+          const restored = emptyConditions();
+          let anyActive = false;
+          saved.medicalConditions.forEach((c) => {
+            if (restored.hasOwnProperty(c)) {
+              restored[c] = true;
+              anyActive = true;
+            }
+          });
+          setConditions(restored);
+          setNoConditions(!anyActive);
         }
       }
 
