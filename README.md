@@ -86,7 +86,7 @@ The risk engine (`services/riskEngine.js`) computes a score from 0–100 using f
 | Lifestyle | 20 | Low sleep, high stress, low water, inactivity + fatigue |
 | Profile | 10 | Thalassemia trait, kidney disease, age &lt;18 or &gt;45 |
 
-**Thresholds:** 0–30 Low (green), 31–60 Moderate (amber), 61–100 High (red).
+**Thresholds:** 0–15 Low (green), 16–30 Moderate (amber), 31+ High (red).
 
 This is an **educational estimate**, not a medical diagnosis. Users should consult a doctor for Hb/ferritin tests.
 
