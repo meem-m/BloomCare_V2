@@ -50,7 +50,6 @@ export default function HomeScreen({ navigation }) {
       }
 
       const initialProfile = await getProfileFromService(user.id);
-      console.log('DEBUG profile:', JSON.stringify(initialProfile));
       if (!initialProfile) {
         setLoading(false);
         navigation.reset({

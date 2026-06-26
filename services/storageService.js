@@ -412,7 +412,6 @@ export const clearAllUserData = async (userId) => {
 
     if (keysToWipe.length > 0) {
       await AsyncStorage.multiRemove(keysToWipe);
-      console.log(`Cleared ${keysToWipe.length} AsyncStorage keys for user ${userId}`);
     }
   } catch (err) {
     console.error('Error clearing user data:', err);

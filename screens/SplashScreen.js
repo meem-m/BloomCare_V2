@@ -48,13 +48,11 @@ export default function SplashScreen({ navigation }) {
       }
 
       const userId = session.user.id;
-      console.log('User ID:', userId);
 
       // 3. Profile check
       let profile = null;
       try {
         profile = await getProfile(userId);
-        console.log('Attempt 1 profile:', JSON.stringify(profile));
       } catch (e) {
         console.warn('Profile fetch attempt 1 failed:', e?.message);
       }
@@ -63,14 +61,10 @@ export default function SplashScreen({ navigation }) {
         await new Promise((r) => setTimeout(r, 800));
         try {
           profile = await getProfile(userId);
-          console.log('Attempt 2 profile:', JSON.stringify(profile));
         } catch (e) {
           console.warn('Profile fetch attempt 2 failed:', e?.message);
         }
       }
-
-      console.log('Final profile:', JSON.stringify(profile));
-      console.log('Going to:', profile ? 'Main' : 'ProfileSetup');
 
       // Pre-warm logs cache in background
       getLogs(userId, 7).catch((err) => {

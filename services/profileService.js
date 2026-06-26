@@ -160,7 +160,6 @@ export const getProfile = async (userId, onFreshData) => {
       return profile;
     } else {
       // Cache is incomplete — delete it and fetch fresh
-      console.log('Cache incomplete — fetching fresh from Supabase');
       await AsyncStorage.removeItem(getCacheKey(userId));
     }
   }

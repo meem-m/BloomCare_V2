@@ -36,7 +36,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       );
       if (keysToWipe.length > 0) {
         await AsyncStorage.multiRemove(keysToWipe);
-        console.log(`Cleared ${keysToWipe.length} keys on SIGNED_OUT event`);
       }
     } catch (err) {
       console.error('Error clearing AsyncStorage on sign out:', err);
