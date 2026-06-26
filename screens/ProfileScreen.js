@@ -14,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { supabase } from '../services/supabase';
 import { getProfile as getProfileFromService } from '../services/profileService';
 import { getLogs } from '../services/storageService';
@@ -268,6 +269,18 @@ export default function ProfileScreen({ navigation }) {
   const bmi = calculateBMI(profile?.weight, profile?.height);
   const bmiCategory = bmi !== null ? getBMICategory(bmi) : null;
 
+  const scheduleReminder = async (enabled) => {
+    if (enabled) {
+      await Notifications.requestPermissionsAsync();
+      await Notifications.scheduleNotificationAsync({
+        content: { title: 'BloomCare Reminder', body: 'Log your symptoms today!' },
+        trigger: { hour: 20, minute: 0, repeats: true },
+      });
+    } else {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    }
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -339,7 +352,10 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <Switch
             value={notifications}
-            onValueChange={setNotifications}
+            onValueChange={(value) => {
+              setNotifications(value);
+              scheduleReminder(value);
+            }}
             trackColor={{ true: theme.primaryLight, false: theme.border }}
             thumbColor={notifications ? theme.primary : theme.textSecondary}
           />
