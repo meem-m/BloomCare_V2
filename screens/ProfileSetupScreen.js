@@ -222,8 +222,20 @@ export default function ProfileSetupScreen({ navigation, route }) {
       setError('Please login again to continue');
       return;
     }
-    const minimalName = fullName || existingName || '';
-    await saveProfile(user.id, { name: minimalName, fullName: minimalName });
+    const minimalName = fullName || existingName || 'User';
+    await saveProfile(user.id, {
+      name: minimalName,
+      fullName: minimalName,
+      age: 0,
+      height: 0,
+      weight: 0,
+      bmi: null,
+      dietaryPreference: 'Omnivore',
+      coffee_tea_frequency: 'never',
+      exercise_frequency: 'weekly',
+      avg_sleep_hours: 7,
+      medicalConditions: ['noConditions'],
+    });
     navigation.replace('Main');
   };
 

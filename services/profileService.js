@@ -110,11 +110,7 @@ export const getProfile = async (userId, onFreshData) => {
   const cached = await AsyncStorage.getItem(getCacheKey(userId));
   if (cached) {
     const profile = JSON.parse(cached);
-    const isValid = !!(
-      profile.name &&
-      profile.age &&
-      (profile.height_cm || profile.height)
-    );
+    const isValid = !!(profile.name);
 
     if (isValid) {
       // Cache is good — return immediately and refresh in background
