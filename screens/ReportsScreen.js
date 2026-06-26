@@ -14,7 +14,7 @@ import { LineChart, BarChart } from 'react-native-chart-kit';
 import { useFocusEffect } from '@react-navigation/native';
 import { getLogs } from '../services/storageService';
 import { getProfile as getProfileFromService } from '../services/profileService';
-import { calculateWeeklyRisk } from '../services/riskEngine';
+import { calculateWeeklyRisk, saveWeeklyRiskReport } from '../services/riskEngine';
 import { generateAnemiaReport } from '../services/geminiService';
 import { supabase } from '../services/supabase';
 import { globalStyles } from '../constants/styles';
@@ -63,6 +63,11 @@ export default function ReportsScreen() {
           ? calculateWeeklyRisk(validLogs, initialProfile)
           : null
       );
+
+      if (validLogs.length >= 7) {
+        const { saveWeeklyRiskReport } = await import('../services/riskEngine');
+        await saveWeeklyRiskReport(user.id, validLogs, initialProfile);
+      }
 
       Promise.all([
         getProfileFromService(user.id, (freshProfile) => {
