@@ -196,6 +196,39 @@ export const getProfile = async (userId, onFreshData) => {
       await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
       return profile;
     }
+
+    await new Promise(r => setTimeout(r, 1000));
+
+    const { data: retryData, error: retryError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (retryError && retryError.code !== 'PGRST116') throw retryError;
+
+    if (retryData) {
+      const profile = {
+        name:                 retryData.name,
+        fullName:             retryData.name,
+        age:                  retryData.age,
+        height:               retryData.height_cm,
+        height_cm:            retryData.height_cm,
+        weight:               retryData.weight_kg,
+        weight_kg:            retryData.weight_kg,
+        bmi:                  retryData.bmi ?? null,
+        dietaryPreference:    retryData.diet_type === 'non_vegetarian'
+                                ? 'Omnivore' : retryData.diet_type,
+        diet_type:            retryData.diet_type,
+        medicalConditions:    buildMedicalConditionsArray(retryData),
+        medical_conditions:   retryData.medical_conditions,
+        coffee_tea_frequency: retryData.coffee_tea_frequency,
+        exercise_frequency:   retryData.exercise_frequency,
+        avg_sleep_hours:      retryData.avg_sleep_hours,
+      };
+      await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
+      return profile;
+    }
   } catch (err) {
     console.warn('Error fetching profile from Supabase:', err);
   }
