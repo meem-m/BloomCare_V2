@@ -15,13 +15,24 @@
       "supportsTablet": true
     },
     "android": {
+      "jsEngine": "jsc",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFF8F8"
-      }
+      },
+      "package": "fyp.bloomcare"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e5f8aa7b-8493-4bd4-8d5a-b3fed9985b97"
+      }
+    },
+    "owner": "meerams-fyp"
   }
 }
