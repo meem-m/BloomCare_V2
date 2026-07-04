@@ -13,11 +13,8 @@
       "android": {
         "buildType": "apk",
         "env": {
-          "EXPO_USE_HERMES": "0",
-          "EXPO_PUBLIC_SUPABASE_URL": "https://kmgdacyytcdwkdjoaqtk.supabase.co",
-          "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_0AF3B-BoLYC0RzIcveIFUg_VgP7SyPk",
-          "EXPO_PUBLIC_GEMINI_API_KEY": "AQ.Ab8RN6IIKEZfbtuc6Fboh8Wa15PN7J3pkzjBp6yDu76b93YRaQ"
-        }
+          "EXPO_USE_HERMES": "0"
+          }
       }
     },
     "production": {
