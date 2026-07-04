@@ -3,6 +3,107 @@ import { supabase } from './supabase';
 
 const getCacheKey = (userId) => `cache_profile_${userId}`;
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const mapProfileRow = (data) => ({
+  name:                 data.name || '',
+  fullName:             data.name || '',
+  age:                  data.age,
+  height:               data.height_cm,
+  height_cm:            data.height_cm,
+  weight:               data.weight_kg,
+  weight_kg:            data.weight_kg,
+  bmi:                  data.bmi ?? null,
+  dietaryPreference:    data.diet_type === 'non_vegetarian'
+                          ? 'Omnivore' : data.diet_type,
+  diet_type:            data.diet_type,
+  medicalConditions:    buildMedicalConditionsArray(data),
+  medical_conditions:   data.medical_conditions,
+  coffee_tea_frequency: data.coffee_tea_frequency,
+  exercise_frequency:   data.exercise_frequency,
+  avg_sleep_hours:      data.avg_sleep_hours,
+});
+
+const readProfileCache = async (userId) => {
+  try {
+    const cached = await AsyncStorage.getItem(getCacheKey(userId));
+    if (!cached) return null;
+
+    const profile = JSON.parse(cached);
+    return profile && profile.name ? profile : null;
+  } catch (err) {
+    console.warn('Invalid cached profile payload:', err?.message);
+    await AsyncStorage.removeItem(getCacheKey(userId)).catch(() => {});
+    return null;
+  }
+};
+
+const writeProfileCache = async (userId, profile) => {
+  try {
+    await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
+  } catch (err) {
+    console.warn('Failed to persist profile cache:', err?.message);
+  }
+};
+
+const fetchProfileRow = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,user_id,name,age,weight_kg,height_cm,bmi,diet_type,medical_conditions,coffee_tea_frequency,exercise_frequency,avg_sleep_hours')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+
+    if (error.code === '42501' || /permission|rls|row level security/i.test(error.message || '')) {
+      const retry = await supabase
+        .from('profiles')
+        .select('id,user_id,name,age,weight_kg,height_cm,bmi,diet_type,medical_conditions,coffee_tea_frequency,exercise_frequency,avg_sleep_hours')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (retry.error) {
+        if (retry.error.code === 'PGRST116') return null;
+        throw retry.error;
+      }
+
+      return retry.data || null;
+    }
+
+    throw error;
+  }
+
+  return data || null;
+};
+
+const fetchProfileWithRetry = async (userId, attempts = 2) => {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const row = await fetchProfileRow(userId);
+      if (row) return row;
+      return null;
+    } catch (err) {
+      lastError = err;
+      if (attempt < attempts - 1) {
+        await sleep(250 * (attempt + 1));
+        continue;
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+export const clearProfileCache = async (userId) => {
+  if (!userId) return;
+  await AsyncStorage.removeItem(getCacheKey(userId)).catch(() => {});
+};
+
 /**
  * Save profile to Supabase and cache to AsyncStorage
  */
@@ -39,46 +140,10 @@ export const saveProfile = async (userId, profileData) => {
 
     if (error) throw error;
 
-    const cached = {
-      name:                 profile.name,
-      fullName:             profile.name,
-      age:                  profile.age,
-      height:               profile.height_cm,
-      height_cm:            profile.height_cm,
-      weight:               profile.weight_kg,
-      weight_kg:            profile.weight_kg,
-      bmi:                  profile.bmi,
-      dietaryPreference:    profile.diet_type === 'non_vegetarian'
-                              ? 'Omnivore' : profile.diet_type,
-      diet_type:            profile.diet_type,
-      medicalConditions:    buildMedicalConditionsArray(profile),
-      medical_conditions:   profile.medical_conditions,
-      coffee_tea_frequency: profile.coffee_tea_frequency,
-      exercise_frequency:   profile.exercise_frequency,
-      avg_sleep_hours:      profile.avg_sleep_hours,
-    };
-    await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(cached));
+    await writeProfileCache(userId, mapProfileRow(profile));
   } catch (err) {
     console.error('Error saving profile:', err);
-    const cached = {
-      name:                 profile.name,
-      fullName:             profile.name,
-      age:                  profile.age,
-      height:               profile.height_cm,
-      height_cm:            profile.height_cm,
-      weight:               profile.weight_kg,
-      weight_kg:            profile.weight_kg,
-      bmi:                  profile.bmi,
-      dietaryPreference:    profile.diet_type === 'non_vegetarian'
-                              ? 'Omnivore' : profile.diet_type,
-      diet_type:            profile.diet_type,
-      medicalConditions:    buildMedicalConditionsArray(profile),
-      medical_conditions:   profile.medical_conditions,
-      coffee_tea_frequency: profile.coffee_tea_frequency,
-      exercise_frequency:   profile.exercise_frequency,
-      avg_sleep_hours:      profile.avg_sleep_hours,
-    };
-    await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(cached));
+    await writeProfileCache(userId, mapProfileRow(profile));
   }
 };
 
@@ -106,127 +171,32 @@ const buildMedicalConditionsArray = (profile) => {
 export const getProfile = async (userId, onFreshData) => {
   if (!userId) return null;
 
-  // Check cache but only use it if it has essential fields
-  const cached = await AsyncStorage.getItem(getCacheKey(userId));
+  const cached = await readProfileCache(userId);
   if (cached) {
-    const profile = JSON.parse(cached);
-    const isValid = !!(profile.name);
-
-    if (isValid) {
-      // Cache is good — return immediately and refresh in background
-      setImmediate(async () => {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-
-          if (error && error.code !== 'PGRST116') throw error;
-
-          if (data) {
-            const freshProfile = {
-              name:                 data.name,
-              fullName:             data.name,
-              age:                  data.age,
-              height:               data.height_cm,
-              height_cm:            data.height_cm,
-              weight:               data.weight_kg,
-              weight_kg:            data.weight_kg,
-              bmi:                  data.bmi ?? null,
-              dietaryPreference:    data.diet_type === 'non_vegetarian'
-                                      ? 'Omnivore' : data.diet_type,
-              diet_type:            data.diet_type,
-              medicalConditions:    buildMedicalConditionsArray(data),
-              medical_conditions:   data.medical_conditions,
-              coffee_tea_frequency: data.coffee_tea_frequency,
-              exercise_frequency:   data.exercise_frequency,
-              avg_sleep_hours:      data.avg_sleep_hours,
-            };
-            await AsyncStorage.setItem(
-              getCacheKey(userId),
-              JSON.stringify(freshProfile)
-            );
-            onFreshData?.(freshProfile);
-          }
-        } catch (err) {
-          console.warn('Background profile fetch failed:', err);
+    Promise.resolve().then(async () => {
+      try {
+        const freshRow = await fetchProfileWithRetry(userId, 2);
+        if (freshRow) {
+          const freshProfile = mapProfileRow(freshRow);
+          await writeProfileCache(userId, freshProfile);
+          onFreshData?.(freshProfile);
         }
-      });
-      return profile;
-    } else {
-      // Cache is incomplete — delete it and fetch fresh
-      await AsyncStorage.removeItem(getCacheKey(userId));
-    }
+      } catch (err) {
+        console.warn('Background profile fetch failed:', err?.message || err);
+      }
+    });
+    return cached;
   }
 
-  // No cache or invalid cache — fetch from Supabase
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-
+    const data = await fetchProfileWithRetry(userId, 3);
     if (data) {
-      const profile = {
-        name:                 data.name,
-        fullName:             data.name,
-        age:                  data.age,
-        height:               data.height_cm,
-        height_cm:            data.height_cm,
-        weight:               data.weight_kg,
-        weight_kg:            data.weight_kg,
-        bmi:                  data.bmi ?? null,
-        dietaryPreference:    data.diet_type === 'non_vegetarian'
-                                ? 'Omnivore' : data.diet_type,
-        diet_type:            data.diet_type,
-        medicalConditions:    buildMedicalConditionsArray(data),
-        medical_conditions:   data.medical_conditions,
-        coffee_tea_frequency: data.coffee_tea_frequency,
-        exercise_frequency:   data.exercise_frequency,
-        avg_sleep_hours:      data.avg_sleep_hours,
-      };
-      await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
-      return profile;
-    }
-
-    await new Promise(r => setTimeout(r, 1000));
-
-    const { data: retryData, error: retryError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (retryError && retryError.code !== 'PGRST116') throw retryError;
-
-    if (retryData) {
-      const profile = {
-        name:                 retryData.name,
-        fullName:             retryData.name,
-        age:                  retryData.age,
-        height:               retryData.height_cm,
-        height_cm:            retryData.height_cm,
-        weight:               retryData.weight_kg,
-        weight_kg:            retryData.weight_kg,
-        bmi:                  retryData.bmi ?? null,
-        dietaryPreference:    retryData.diet_type === 'non_vegetarian'
-                                ? 'Omnivore' : retryData.diet_type,
-        diet_type:            retryData.diet_type,
-        medicalConditions:    buildMedicalConditionsArray(retryData),
-        medical_conditions:   retryData.medical_conditions,
-        coffee_tea_frequency: retryData.coffee_tea_frequency,
-        exercise_frequency:   retryData.exercise_frequency,
-        avg_sleep_hours:      retryData.avg_sleep_hours,
-      };
-      await AsyncStorage.setItem(getCacheKey(userId), JSON.stringify(profile));
+      const profile = mapProfileRow(data);
+      await writeProfileCache(userId, profile);
       return profile;
     }
   } catch (err) {
-    console.warn('Error fetching profile from Supabase:', err);
+    console.warn('Error fetching profile from Supabase:', err?.message || err);
   }
 
   return null;
@@ -300,13 +270,13 @@ export const profileExists = async (userId) => {
       .from('profiles')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') throw error;
     return !!data;
   } catch (err) {
     console.warn('Error checking profile existence:', err);
-    const cached = await AsyncStorage.getItem(getCacheKey(userId));
+    const cached = await readProfileCache(userId);
     return !!cached;
   }
 };

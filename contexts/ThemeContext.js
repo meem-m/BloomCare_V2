@@ -99,9 +99,13 @@ export function ThemeProvider({ children }) {
     let mounted = true;
 
     const loadTheme = async () => {
-      const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      if (mounted && stored && themes[stored]) {
-        setThemeName(stored);
+      try {
+        const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (mounted && stored && themes[stored]) {
+          setThemeName(stored);
+        }
+      } catch (err) {
+        console.warn('Theme load failed, using default theme:', err?.message || err);
       }
     };
 
@@ -115,7 +119,11 @@ export function ThemeProvider({ children }) {
   const setTheme = async (name) => {
     if (!themes[name]) return;
     setThemeName(name);
-    await AsyncStorage.setItem(THEME_STORAGE_KEY, name);
+    try {
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, name);
+    } catch (err) {
+      console.warn('Theme save failed:', err?.message || err);
+    }
   };
 
   const value = useMemo(

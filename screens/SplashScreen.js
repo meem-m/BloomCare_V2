@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
 import { isOnboardingComplete, getLogs } from '../services/storageService';
-import { getProfile } from '../services/profileService';
+import { getProfile, clearProfileCache } from '../services/profileService';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function SplashScreen({ navigation }) {
@@ -64,6 +64,14 @@ export default function SplashScreen({ navigation }) {
         } catch (e) {
           console.warn('Profile fetch attempt 2 failed:', e?.message);
         }
+      }
+
+      if (profile && !profile.name) {
+        profile = null;
+      }
+
+      if (!profile) {
+        await clearProfileCache(userId);
       }
 
       // Pre-warm logs cache in background
